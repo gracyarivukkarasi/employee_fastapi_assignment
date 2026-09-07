@@ -3,6 +3,7 @@ from app.schemas import Employee, EmployeeCreate, EmployeeUpdate
 
 employees: list[Employee] = []
 next_employee_id = 1
+
 def create_employee(employee: EmployeeCreate):
 
     global next_employee_id
