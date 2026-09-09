@@ -111,7 +111,6 @@ I resolved these issues by checking error messages, understanding the purpose of
 
 The APIs were tested using Swagger UI available at:
 
-```text
 http://127.0.0.1:8000/docs
 
 The following scenarios were tested:
