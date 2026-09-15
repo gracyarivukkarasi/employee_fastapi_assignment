@@ -1,7 +1,7 @@
 from datetime import datetime
 from enum import Enum
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 
 class WorkMode(str, Enum):
@@ -17,6 +17,13 @@ class EmployeeCreate(BaseModel):
     location: str = Field(..., min_length=1)
     work_mode: WorkMode
 
+    @field_validator("name", "department", "primary_skill", "location")
+    @classmethod
+    def validate_required_fields(cls, value):
+        if not value.strip():
+            raise ValueError("Field cannot be empty or whitespace only")
+        return value.strip()
+
 
 class EmployeeUpdate(BaseModel):
     name: str = Field(..., min_length=1)
@@ -27,8 +34,25 @@ class EmployeeUpdate(BaseModel):
     work_mode: WorkMode
     is_active: bool
 
+    @field_validator("name", "department", "primary_skill", "location")
+    @classmethod
+    def validate_required_fields(cls, value):
+        if not value.strip():
+            raise ValueError("Field cannot be empty or whitespace only")
+        return value.strip()
 
-class Employee(EmployeeCreate):
+
+class EmployeeResponse(BaseModel):
     id: int = Field(..., gt=0)
-    is_active: bool = True
+    name: str
+    email: EmailStr
+    department: str
+    primary_skill: str
+    location: str
+    work_mode: WorkMode
+    is_active: bool
     created_at: datetime
+
+    model_config = {
+        "from_attributes": True
+    }

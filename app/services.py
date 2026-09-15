@@ -1,65 +1,96 @@
-from datetime import datetime
-from app.schemas import Employee, EmployeeCreate, EmployeeUpdate
+from sqlalchemy import func
+from sqlalchemy.orm import Session
 
-employees: list[Employee] = []
-next_employee_id = 1
+from app.models import Employee
+from app.schemas import EmployeeCreate, EmployeeUpdate
 
-def create_employee(employee: EmployeeCreate):
 
-    global next_employee_id
+def create_employee(db: Session, employee_data: EmployeeCreate):
 
-    for existing_employee in employees:
-        if existing_employee.email == employee.email:
-            return None
+    existing_employee = (
+        db.query(Employee)
+        .filter(func.lower(Employee.email) == employee_data.email.lower())
+        .first()
+    )
+
+    if existing_employee:
+        return None
 
     new_employee = Employee(
-        id=next_employee_id,
-        name=employee.name,
-        email=employee.email,
-        department=employee.department,
-        primary_skill=employee.primary_skill,
-        location=employee.location,
-        work_mode=employee.work_mode,
+        name=employee_data.name,
+        email=employee_data.email,
+        department=employee_data.department,
+        primary_skill=employee_data.primary_skill,
+        location=employee_data.location,
+        work_mode=employee_data.work_mode.value,
         is_active=True,
-        created_at=datetime.now()
     )
-    employees.append(new_employee)
-    next_employee_id += 1
+
+    db.add(new_employee)
+    db.commit()
+    db.refresh(new_employee)
+
     return new_employee
-def get_all_employees():
-    return employees
 
-def get_employee_by_id(employee_id: int):
-    for employee in employees:
-        if employee.id == employee_id:
-            return employee
 
-    return None
+def get_all_employees(db: Session):
+    return db.query(Employee).all()
 
-def update_employee(employee_id: int, employee_data: EmployeeUpdate):
 
-    for existing_employee in employees:
-        if existing_employee.email == employee_data.email and existing_employee.id != employee_id:
-            return None
+def get_employee_by_id(db: Session, employee_id: int):
 
-    for employee in employees:
-        if employee.id == employee_id:
-            employee.name = employee_data.name
-            employee.email = employee_data.email
-            employee.department = employee_data.department
-            employee.primary_skill = employee_data.primary_skill
-            employee.location = employee_data.location
-            employee.work_mode = employee_data.work_mode
-            employee.is_active = employee_data.is_active
+    return (
+        db.query(Employee)
+        .filter(Employee.id == employee_id)
+        .first()
+    )
 
-            return employee
 
-    return None
+def update_employee(
+    db: Session,
+    employee_id: int,
+    employee_data: EmployeeUpdate
+):
 
-def delete_employee(employee_id: int):
-    for employee in employees:
-        if employee.id == employee_id:
-            employees.remove(employee)
-            return employee
+    existing_employee = (
+        db.query(Employee)
+        .filter(
+            func.lower(Employee.email) == employee_data.email.lower(),
+            Employee.id != employee_id
+        )
+        .first()
+    )
 
-    return None
+    if existing_employee:
+        return None
+
+    employee = get_employee_by_id(db, employee_id)
+
+    if employee is None:
+        return None
+
+    employee.name = employee_data.name
+    employee.email = employee_data.email
+    employee.department = employee_data.department
+    employee.primary_skill = employee_data.primary_skill
+    employee.location = employee_data.location
+    employee.work_mode = employee_data.work_mode.value
+    employee.is_active = employee_data.is_active
+
+    db.commit()
+    db.refresh(employee)
+
+    return employee
+
+
+def delete_employee(db: Session, employee_id: int):
+
+    employee = get_employee_by_id(db, employee_id)
+
+    if employee is None:
+        return None
+
+    db.delete(employee)
+    db.commit()
+
+    return employee
