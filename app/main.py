@@ -2,7 +2,7 @@ from fastapi import Depends, FastAPI, HTTPException, Path
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.database import get_db
+from app.database import Base, engine, get_db
 from app.schemas import EmployeeCreate, EmployeeResponse, EmployeeUpdate
 from app.services import (
     create_employee,
@@ -13,7 +13,7 @@ from app.services import (
 )
 
 app = FastAPI(title="Employee Management API")
-
+Base.metadata.create_all(bind=engine)
 
 @app.get("/health")
 def health_check():
