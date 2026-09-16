@@ -296,3 +296,21 @@ The application handles common errors including:
 - `409 Conflict` for duplicate emails
 - `422 Unprocessable Entity` for invalid request data
 - Database transaction rollback for failed database changes
+
+## Requirements
+
+The required Python packages are listed in:
+
+```text
+requirements.txt
+```
+
+The application requires Python 3.12 and a running MySQL server.
+
+## Git
+
+The project is maintained using Git.
+
+Task 2 changes were committed and pushed to the existing repository with meaningful commits.
+
+The `.env` file is excluded from Git to prevent database credentials from being committed.
