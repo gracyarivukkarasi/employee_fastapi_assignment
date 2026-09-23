@@ -56,3 +56,9 @@ class EmployeeResponse(BaseModel):
     model_config = {
         "from_attributes": True
     }
+
+class EmployeeListResponse(BaseModel):
+    total: int
+    limit: int
+    offset: int
+    items: list[EmployeeResponse]

@@ -1,9 +1,15 @@
-from fastapi import Depends, FastAPI, HTTPException, Path
+from fastapi import Depends, FastAPI, HTTPException, Path, Query
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.database import Base, engine, get_db
-from app.schemas import EmployeeCreate, EmployeeResponse, EmployeeUpdate
+from app.schemas import (
+    EmployeeCreate,
+    EmployeeListResponse,
+    EmployeeResponse,
+    EmployeeUpdate,
+    WorkMode,
+)
 from app.services import (
     create_employee,
     delete_employee,
@@ -54,16 +60,46 @@ def create_employee_api(
         )
 
 
-@app.get("/employees", response_model=list[EmployeeResponse])
-def get_employees(db: Session = Depends(get_db)):
-    return get_all_employees(db)
-
-
-@app.get("/employees/{employee_id}", response_model=EmployeeResponse)
-def get_employee(
-    employee_id: int = Path(..., gt=0),
-    db: Session = Depends(get_db)
+@app.get("/employees", response_model=EmployeeListResponse)
+def get_employees(
+    search: str | None = Query(
+        default=None,
+        description="Search employees by name"
+    ),
+    department: str | None = Query(
+        default=None,
+        description="Filter employees by department"
+    ),
+    work_mode: WorkMode | None = Query(
+        default=None,
+        description="Filter employees by work mode"
+    ),
+    is_active: bool | None = Query(
+        default=None,
+        description="Filter employees by active status"
+    ),
+    limit: int = Query(
+        default=10,
+        ge=1,
+        le=100,
+        description="Maximum number of records to return"
+    ),
+    offset: int = Query(
+        default=0,
+        ge=0,
+        description="Number of records to skip"
+    ),
+    db: Session = Depends(get_db),
 ):
+    return get_all_employees(
+        db=db,
+        search=search,
+        department=department,
+        work_mode=work_mode.value if work_mode else None,
+        is_active=is_active,
+        limit=limit,
+        offset=offset,
+    )
     employee = get_employee_by_id(db, employee_id)
 
     if employee is None:
