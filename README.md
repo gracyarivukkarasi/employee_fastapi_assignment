@@ -144,6 +144,80 @@ Swagger UI can be used to test all available API endpoints.
 | PUT | `/employees/{employee_id}` | Update an employee |
 | DELETE | `/employees/{employee_id}` | Delete an employee |
 
+## Task 3 – Filtering and Pagination
+
+The `GET /employees` endpoint was extended with optional filtering, searching, and pagination parameters.
+
+### Query Parameters
+
+| Parameter | Type | Default | Description |
+|---|---|---:|---|
+| `search` | string | None | Partial, case-insensitive search by employee name |
+| `department` | string | None | Filter employees by department |
+| `work_mode` | WFH/WFO | None | Filter employees by work mode |
+| `is_active` | boolean | None | Filter employees by active status |
+| `limit` | integer | 10 | Number of records to return. Allowed range: 1–100 |
+| `offset` | integer | 0 | Number of records to skip. Must be 0 or greater |
+
+Multiple filters can be used together.
+### Example Requests
+
+Search by employee name:
+
+```text
+GET /employees?search=an
+Filter by department:
+
+GET /employees?department=Engineering
+
+Filter by work mode:
+
+GET /employees?work_mode=WFH
+
+Filter by active status:
+
+GET /employees?is_active=false
+
+Combined filters:
+
+GET /employees?department=Engineering&work_mode=WFH&is_active=true
+
+Pagination:
+
+GET /employees?limit=3&offset=0
+
+Next page:
+
+GET /employees?limit=3&offset=3
+### Response Format
+
+The response contains the total number of matching employees before pagination, along with the limit, offset, and employee records.
+
+{
+  "total": 10,
+  "limit": 3,
+  "offset": 0,
+  "items": []
+}
+
+When there are no matching employees, the API returns 200 OK with an empty items list.
+
+{
+  "total": 0,
+  "limit": 10,
+  "offset": 0,
+  "items": []
+}
+### Validation
+limit must be between 1 and 100.
+offset must be 0 or greater.
+work_mode must be either WFH or WFO.
+Invalid query parameter values return a 422 Unprocessable Entity response.
+
+### SQLAlchemy Filtering and Pagination
+
+Filtering, searching, counting, ordering, and pagination are performed using SQLAlchemy database query operations.
+
 ## Validation Rules
 
 - Employee name is required.
@@ -209,6 +283,16 @@ The following scenarios were tested:
 - `created_at` preservation during update
 - Data persistence after application restart
 - Database verification using MySQL Workbench
+- Partial and case-insensitive employee name search
+- Department filter
+- Work mode filter
+- Active/inactive employee filter
+- Combined filters
+- Pagination using limit and offset
+- No matching records
+- Invalid limit validation
+- Invalid offset validation
+- Invalid work mode validation
 
 ## Test Results
 
@@ -227,6 +311,16 @@ The following scenarios were tested:
 | `created_at` preservation | Creation time unchanged | Passed |
 | Restart persistence | Employee retrieved after restart | Passed |
 | MySQL database verification | Record stored in database | Passed |
+| Partial name search | Matching employees returned | Passed |
+| Department filter | Matching department records returned | Passed |
+| Work mode filter | Matching WFH/WFO records returned | Passed |
+| Active status filter | Matching active/inactive records returned | Passed |
+| Combined filters | All selected filters applied together | Passed |
+| Pagination | Correct limit and offset applied | Passed |
+| No matching records | 200 OK with empty items | Passed |
+| Invalid limit | 422 Validation Error | Passed |
+| Invalid offset | 422 Validation Error | Passed |
+| Invalid work mode | 422 Validation Error | Passed |
 
 ## Screenshots
 
@@ -248,6 +342,16 @@ The screenshots include:
 - `created_at` preservation
 - `is_active` default
 - MySQL database verification
+- partial-name search
+- department filter
+- work mode filter
+- active/inactive filter
+- combined filters
+- pagination
+- no matching records
+- invalid limit
+- invalid offset
+- invalid work mode
 
 ## What I Learned
 
@@ -266,12 +370,22 @@ Through Task 2, I learned:
 - How to test APIs using Swagger UI.
 - How to verify database records using MySQL Workbench.
 - How database persistence works across application restarts.
+- How to implement query parameters in FastAPI.
+- How to perform partial and case-insensitive searches using SQLAlchemy.
+- How to apply multiple SQLAlchemy filters together.
+- How to implement pagination using limit and offset.
+- How to calculate the total number of matching records before pagination.
+- How to validate query parameters using FastAPI and Pydantic.
+- How to test filtering and pagination APIs using Swagger UI.
 
 ## Difficulties Faced
 
 During Task 2, I faced difficulties while configuring MySQL, connecting the FastAPI application to the database, installing SQLAlchemy and the MySQL driver, and understanding database sessions.
 
 I resolved these issues by checking error messages, verifying the MySQL service and database connection, and testing the application step by step using Swagger UI and MySQL Workbench.
+
+During Task 3, I faced difficulties while implementing multiple query parameters, combining SQLAlchemy filters, and handling pagination with total record counts. I resolved these issues by implementing the filters step by step and testing each scenario through Swagger UI, including combined filters, pagination, no-match cases, and invalid inputs.
+
 
 ## Assumptions
 
