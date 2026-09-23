@@ -127,7 +127,7 @@ def delete_employee_api(
     employee_id: int = Path(..., gt=0),
     db: Session = Depends(get_db)
 ):
-    employee = delete_employee(db, employee_id)
+    employee = get_employee_by_id(db, employee_id)
 
     if employee is None:
         raise HTTPException(
@@ -135,4 +135,19 @@ def delete_employee_api(
             detail="Employee not found"
         )
 
-    return {"message": "Employee deleted successfully"}
+    try:
+        deleted_employee = delete_employee(
+            db,
+            employee_id
+        )
+
+        return {
+            "message": "Employee deleted successfully"
+        }
+
+    except Exception:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to delete employee"
+        )
