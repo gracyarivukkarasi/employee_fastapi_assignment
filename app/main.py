@@ -100,6 +100,11 @@ def get_employees(
         limit=limit,
         offset=offset,
     )
+@app.get("/employees/{employee_id}", response_model=EmployeeResponse)
+def get_employee(
+    employee_id: int = Path(..., gt=0),
+    db: Session = Depends(get_db)
+):
     employee = get_employee_by_id(db, employee_id)
 
     if employee is None:
