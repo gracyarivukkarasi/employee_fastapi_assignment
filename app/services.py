@@ -1,9 +1,14 @@
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from app.models import Employee
-from app.schemas import EmployeeCreate, EmployeeUpdate
-
+from app.models import Employee, WorkItem
+from app.schemas import (
+    EmployeeCreate,
+    EmployeeUpdate,
+    WorkItemCreate,
+    WorkItemUpdate,
+)
 
 def create_employee(db: Session, employee_data: EmployeeCreate):
 
@@ -144,6 +149,170 @@ def delete_employee(db: Session, employee_id: int):
         return None
 
     db.delete(employee)
-    db.commit()
+
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        return "has_work_items"
 
     return employee
+
+def create_work_item(
+    db: Session,
+    work_item_data: WorkItemCreate
+):
+    employee = (
+        db.query(Employee)
+        .filter(Employee.id == work_item_data.employee_id)
+        .first()
+    )
+
+    if employee is None:
+        return None
+
+    new_work_item = WorkItem(
+        title=work_item_data.title,
+        description=work_item_data.description,
+        employee_id=work_item_data.employee_id,
+        status=work_item_data.status.value,
+        priority=work_item_data.priority.value,
+        due_date=work_item_data.due_date,
+    )
+
+    try:
+        db.add(new_work_item)
+        db.commit()
+        db.refresh(new_work_item)
+
+        return new_work_item
+
+    except SQLAlchemyError as e:
+        db.rollback()
+        print("DATABASE ERROR:", e)
+        return "database_error"
+
+
+def get_all_work_items(
+    db: Session,
+    search: str | None = None,
+    employee_id: int | None = None,
+    status: str | None = None,
+    priority: str | None = None,
+    limit: int = 10,
+    offset: int = 0,
+):
+    query = db.query(WorkItem)
+
+    if search:
+        query = query.filter(
+            WorkItem.title.ilike(f"%{search}%")
+        )
+
+    if employee_id is not None:
+        query = query.filter(
+            WorkItem.employee_id == employee_id
+        )
+
+    if status:
+        query = query.filter(
+            WorkItem.status == status
+        )
+
+    if priority:
+        query = query.filter(
+            WorkItem.priority == priority
+        )
+
+    total = query.with_entities(
+        func.count(WorkItem.id)
+    ).scalar()
+
+    work_items = (
+        query
+        .order_by(WorkItem.id.asc())
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
+
+    return {
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+        "items": work_items,
+    }
+
+
+def get_work_item_by_id(
+    db: Session,
+    work_item_id: int
+):
+    return (
+        db.query(WorkItem)
+        .filter(WorkItem.id == work_item_id)
+        .first()
+    )
+
+
+def update_work_item(
+    db: Session,
+    work_item_id: int,
+    work_item_data: WorkItemUpdate
+):
+    work_item = get_work_item_by_id(
+        db,
+        work_item_id
+    )
+
+    if work_item is None:
+        return None
+
+    employee = (
+        db.query(Employee)
+        .filter(Employee.id == work_item_data.employee_id)
+        .first()
+    )
+
+    if employee is None:
+        return "employee_not_found"
+
+    work_item.title = work_item_data.title
+    work_item.description = work_item_data.description
+    work_item.employee_id = work_item_data.employee_id
+    work_item.status = work_item_data.status.value
+    work_item.priority = work_item_data.priority.value
+    work_item.due_date = work_item_data.due_date
+
+    try:
+        db.commit()
+        db.refresh(work_item)
+
+        return work_item
+
+    except SQLAlchemyError:
+        db.rollback()
+        return "database_error"
+
+
+def delete_work_item(
+    db: Session,
+    work_item_id: int
+):
+    work_item = get_work_item_by_id(
+        db,
+        work_item_id
+    )
+
+    if work_item is None:
+        return None
+
+    try:
+        db.delete(work_item)
+        db.commit()
+
+        return work_item
+
+    except SQLAlchemyError:
+        db.rollback()
+        return "database_error"
