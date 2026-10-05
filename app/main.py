@@ -175,35 +175,26 @@ def update_employee_api(
         )
 
 
-@app.delete("/employees/{employee_id}")
+@app.delete("/employees/{employee_id}", status_code=204)
 def delete_employee_api(
     employee_id: int = Path(..., gt=0),
     db: Session = Depends(get_db)
 ):
-    employee = get_employee_by_id(db, employee_id)
+    deleted_employee = delete_employee(db, employee_id)
 
-    if employee is None:
+    if deleted_employee is None:
         raise HTTPException(
             status_code=404,
             detail="Employee not found"
         )
 
-    try:
-        deleted_employee = delete_employee(
-            db,
-            employee_id
-        )
-
-        return {
-            "message": "Employee deleted successfully"
-        }
-
-    except Exception:
-        db.rollback()
+    if deleted_employee == "has_work_items":
         raise HTTPException(
-            status_code=500,
-            detail="Failed to delete employee"
+            status_code=409,
+            detail="Cannot delete employee because they have assigned work items. Reassign or delete the work items first."
         )
+
+    return None
 
 @app.post(
     "/work-items",
@@ -218,6 +209,11 @@ def create_work_item_api(
         db,
         work_item
     )
+    if new_work_item == "database_error":
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to create work item due to a database error"
+        )
 
     if new_work_item is None:
         raise HTTPException(
@@ -291,26 +287,6 @@ def get_work_item(
 
     return work_item
 
-@app.get(
-    "/work-items/{work_item_id}",
-    response_model=WorkItemResponse
-)
-def get_work_item(
-    work_item_id: int = Path(..., gt=0),
-    db: Session = Depends(get_db)
-):
-    work_item = get_work_item_by_id(
-        db,
-        work_item_id
-    )
-
-    if work_item is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Work item not found"
-        )
-
-    return work_item
 
 @app.put(
     "/work-items/{work_item_id}",
@@ -337,11 +313,16 @@ def update_work_item_api(
         work_item_id,
         work_item_data
     )
-
     if updated_work_item == "employee_not_found":
         raise HTTPException(
             status_code=404,
             detail="Employee not found"
+        )
+
+    if updated_work_item == "database_error":
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to update work item due to a database error"
         )
 
     return updated_work_item
@@ -364,10 +345,13 @@ def delete_work_item_api(
             status_code=404,
             detail="Work item not found"
         )
-
-    delete_work_item(
+    deleted_work_item = delete_work_item(
         db,
         work_item_id
     )
-
+    if deleted_work_item == "database_error":
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to delete work item due to a database error"
+        )
     return None

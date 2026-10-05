@@ -1,4 +1,5 @@
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.models import Employee, WorkItem
@@ -148,7 +149,12 @@ def delete_employee(db: Session, employee_id: int):
         return None
 
     db.delete(employee)
-    db.commit()
+
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        return "has_work_items"
 
     return employee
 
@@ -174,11 +180,17 @@ def create_work_item(
         due_date=work_item_data.due_date,
     )
 
-    db.add(new_work_item)
-    db.commit()
-    db.refresh(new_work_item)
+    try:
+        db.add(new_work_item)
+        db.commit()
+        db.refresh(new_work_item)
 
-    return new_work_item
+        return new_work_item
+
+    except SQLAlchemyError as e:
+        db.rollback()
+        print("DATABASE ERROR:", e)
+        return "database_error"
 
 
 def get_all_work_items(
@@ -272,10 +284,15 @@ def update_work_item(
     work_item.priority = work_item_data.priority.value
     work_item.due_date = work_item_data.due_date
 
-    db.commit()
-    db.refresh(work_item)
+    try:
+        db.commit()
+        db.refresh(work_item)
 
-    return work_item
+        return work_item
+
+    except SQLAlchemyError:
+        db.rollback()
+        return "database_error"
 
 
 def delete_work_item(
@@ -290,7 +307,12 @@ def delete_work_item(
     if work_item is None:
         return None
 
-    db.delete(work_item)
-    db.commit()
+    try:
+        db.delete(work_item)
+        db.commit()
 
-    return work_item
+        return work_item
+
+    except SQLAlchemyError:
+        db.rollback()
+        return "database_error"
