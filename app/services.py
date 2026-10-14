@@ -8,7 +8,25 @@ from app.schemas import (
     EmployeeUpdate,
     WorkItemCreate,
     WorkItemUpdate,
+    WorkItemStatus,
 )
+def validate_status_transition(
+    current_status: str,
+    requested_status: WorkItemStatus,
+):
+    current = WorkItemStatus(current_status)
+    requested = requested_status
+
+    # Requesting the current status is allowed.
+    if current == requested:
+        return True
+
+    allowed_transitions = {
+        WorkItemStatus.TODO: WorkItemStatus.IN_PROGRESS,
+        WorkItemStatus.IN_PROGRESS: WorkItemStatus.COMPLETED,
+    }
+
+    return allowed_transitions.get(current) == requested
 
 def create_employee(db: Session, employee_data: EmployeeCreate):
 
@@ -260,14 +278,12 @@ def update_work_item(
     work_item_id: int,
     work_item_data: WorkItemUpdate
 ):
-    work_item = get_work_item_by_id(
-        db,
-        work_item_id
-    )
+    work_item = get_work_item_by_id(db, work_item_id)
 
     if work_item is None:
         return None
 
+    # Validate the employee before changing anything.
     employee = (
         db.query(Employee)
         .filter(Employee.id == work_item_data.employee_id)
@@ -277,14 +293,29 @@ def update_work_item(
     if employee is None:
         return "employee_not_found"
 
-    work_item.title = work_item_data.title
-    work_item.description = work_item_data.description
-    work_item.employee_id = work_item_data.employee_id
-    work_item.status = work_item_data.status.value
-    work_item.priority = work_item_data.priority.value
-    work_item.due_date = work_item_data.due_date
+    # Check the requested status before changing any fields.
+    requested_status = work_item_data.status
+
+    if requested_status is not None:
+        if not validate_status_transition(
+            work_item.status,
+            requested_status,
+        ):
+            return "invalid_status_transition"
 
     try:
+        # Update fields only after all business validations pass.
+        work_item.title = work_item_data.title
+        work_item.description = work_item_data.description
+        work_item.employee_id = work_item_data.employee_id
+
+        # Preserve the current status when PUT omits it.
+        if requested_status is not None:
+            work_item.status = requested_status.value
+
+        work_item.priority = work_item_data.priority.value
+        work_item.due_date = work_item_data.due_date
+
         db.commit()
         db.refresh(work_item)
 
@@ -294,6 +325,35 @@ def update_work_item(
         db.rollback()
         return "database_error"
 
+def update_work_item_status(
+    db: Session,
+    work_item_id: int,
+    requested_status: WorkItemStatus,
+):
+    work_item = get_work_item_by_id(db, work_item_id)
+
+    if work_item is None:
+        return None
+
+    if not validate_status_transition(
+        work_item.status,
+        requested_status,
+    ):
+        return "invalid_status_transition"
+
+    # Don't commit or modify the record when the status is unchanged.
+    if work_item.status == requested_status.value:
+        return work_item
+
+    try:
+        work_item.status = requested_status.value
+        db.commit()
+        db.refresh(work_item)
+        return work_item
+
+    except SQLAlchemyError:
+        db.rollback()
+        return "database_error"
 
 def delete_work_item(
     db: Session,
@@ -316,3 +376,41 @@ def delete_work_item(
     except SQLAlchemyError:
         db.rollback()
         return "database_error"
+
+def get_employee_work_summary(
+    db: Session,
+    employee_id: int,
+):
+    employee = get_employee_by_id(db, employee_id)
+
+    if employee is None:
+        return None
+
+    counts = (
+        db.query(
+            WorkItem.status,
+            func.count(WorkItem.id),
+        )
+        .filter(WorkItem.employee_id == employee_id)
+        .group_by(WorkItem.status)
+        .all()
+    )
+
+    status_counts = {
+        "TODO": 0,
+        "IN_PROGRESS": 0,
+        "COMPLETED": 0,
+    }
+
+    for status, count in counts:
+        status_counts[status] = count
+
+    total = sum(status_counts.values())
+
+    return {
+        "employee_id": employee_id,
+        "total_work_items": total,
+        "todo": status_counts["TODO"],
+        "in_progress": status_counts["IN_PROGRESS"],
+        "completed": status_counts["COMPLETED"],
+    }

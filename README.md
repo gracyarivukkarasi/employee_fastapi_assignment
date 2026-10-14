@@ -707,3 +707,42 @@ The project is maintained using Git.
 Task 2, Task 3, and Task 4 changes were committed and pushed to the existing repository with meaningful commits.
 
 The `.env` file is excluded from Git to prevent database credentials from being committed.
+
+
+## Task 5: Work Item Status Management and Work Summary
+
+### 1. Update Work Item Status
+- Added PATCH `/work-items/{work_item_id}/status`.
+- Allowed transitions: TODO → IN_PROGRESS → COMPLETED.
+- Rejected invalid transitions with HTTP 400.
+- Returned HTTP 404 when the work item was not found.
+- New work items must start with TODO.
+- Repeating the current status is allowed without changing it.
+
+### 2. Update Work Item API
+- Applied the same status transition rules to PUT `/work-items/{work_item_id}`.
+- Preserved the existing status when status was omitted.
+- Rejected invalid transitions without saving other changes.
+
+### 3. Employee Work Summary
+- Added GET `/employees/{employee_id}/work-summary`.
+- Returned total work items and counts by status.
+- Excluded deleted work items from the summary.
+- Returned HTTP 404 when the employee was not found.
+
+### 4. Testing
+- Tested successful and invalid status transitions using Swagger UI.
+- Tested missing work items and invalid status values.
+- Verified employee work summary counts.
+- Verified deleted work items were excluded.
+
+## Task 5 Screenshots
+
+The `screenshots` folder contains evidence of the Task 5 API tests.
+
+- `task5_patch_status_success.png` – Successful status update
+- `task5_invalid_status_transition.png` – Invalid transition rejected
+- `task5_initial_status_validation.png` – Initial status validation
+- `task5_employee_work_summary.png` – Employee work summary
+- `task5_employee_not_found.png` – Missing employee
+- `task5_work_item_not_found.png` – Missing work item

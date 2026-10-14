@@ -14,6 +14,8 @@ class WorkItemPriority(str, Enum):
     MEDIUM = "MEDIUM"
     HIGH = "HIGH"
 
+class WorkItemStatusUpdate(BaseModel):
+    status: WorkItemStatus
 
 class WorkMode(str, Enum):
     WFH = "WFH"
@@ -94,7 +96,7 @@ class WorkItemUpdate(BaseModel):
     title: str = Field(..., min_length=1, max_length=200)
     description: str | None = Field(default=None, max_length=500)
     employee_id: int = Field(..., gt=0)
-    status: WorkItemStatus
+    status: WorkItemStatus | None = Field(default=None)
     priority: WorkItemPriority
     due_date: date | None = None
 
@@ -104,6 +106,13 @@ class WorkItemUpdate(BaseModel):
         if not value.strip():
             raise ValueError("Title cannot be empty or whitespace only")
         return value.strip()
+
+    @field_validator("status", mode="before")
+    @classmethod
+    def reject_null_status(cls, value):
+        if value is None:
+            raise ValueError("Status cannot be null")
+        return value
 
 
 class AssignedEmployeeResponse(BaseModel):
@@ -137,3 +146,10 @@ class WorkItemListResponse(BaseModel):
     limit: int
     offset: int
     items: list[WorkItemResponse]
+
+class EmployeeWorkSummaryResponse(BaseModel):
+    employee_id: int
+    total_work_items: int
+    todo: int
+    in_progress: int
+    completed: int

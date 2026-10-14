@@ -9,11 +9,13 @@ from app.schemas import (
     EmployeeListResponse,
     EmployeeResponse,
     EmployeeUpdate,
+    EmployeeWorkSummaryResponse,
     WorkMode,
     WorkItemCreate,
     WorkItemListResponse,
     WorkItemResponse,
     WorkItemStatus,
+    WorkItemStatusUpdate,
     WorkItemPriority,
     WorkItemUpdate,
 )
@@ -28,6 +30,8 @@ from app.services import (
     get_all_work_items,
     get_work_item_by_id,
     update_work_item,
+    update_work_item_status,
+    get_employee_work_summary,
 )
 
 app = FastAPI(title="Employee Management API")
@@ -112,6 +116,24 @@ def get_employees(
         limit=limit,
         offset=offset,
     )
+@app.get(
+    "/employees/{employee_id}/work-summary",
+    response_model=EmployeeWorkSummaryResponse,
+)
+def get_employee_work_summary_api(
+    employee_id: int = Path(..., gt=0),
+    db: Session = Depends(get_db),
+):
+    summary = get_employee_work_summary(db, employee_id)
+
+    if summary is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Employee not found",
+        )
+
+    return summary
+
 @app.get("/employees/{employee_id}", response_model=EmployeeResponse)
 def get_employee(
     employee_id: int = Path(..., gt=0),
@@ -205,6 +227,12 @@ def create_work_item_api(
     work_item: WorkItemCreate,
     db: Session = Depends(get_db)
 ):
+    if work_item.status != WorkItemStatus.TODO:
+        raise HTTPException(
+            status_code=400,
+            detail="New work items must start with TODO status"
+        )
+
     new_work_item = create_work_item(
         db,
         work_item
@@ -265,6 +293,43 @@ def get_work_items(
         limit=limit,
         offset=offset,
     )
+@app.patch(
+    "/work-items/{work_item_id}/status",
+    response_model=WorkItemResponse,
+)
+def update_work_item_status_api(
+    status_update: WorkItemStatusUpdate,
+    work_item_id: int = Path(..., gt=0),
+    db: Session = Depends(get_db),
+):
+    updated_work_item = update_work_item_status(
+        db,
+        work_item_id,
+        status_update.status,
+    )
+
+    if updated_work_item is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Work item not found",
+        )
+
+    if updated_work_item == "invalid_status_transition":
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Invalid status transition. Allowed transitions are "
+                "TODO -> IN_PROGRESS -> COMPLETED."
+            ),
+        )
+
+    if updated_work_item == "database_error":
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to update work item due to a database error",
+        )
+
+    return updated_work_item
 
 @app.get(
     "/work-items/{work_item_id}",
@@ -317,6 +382,14 @@ def update_work_item_api(
         raise HTTPException(
             status_code=404,
             detail="Employee not found"
+        )
+    if updated_work_item == "invalid_status_transition":
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Invalid status transition. Allowed transitions are "
+                "TODO -> IN_PROGRESS -> COMPLETED."
+            ),
         )
 
     if updated_work_item == "database_error":
