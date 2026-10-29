@@ -746,3 +746,207 @@ The `screenshots` folder contains evidence of the Task 5 API tests.
 - `task5_employee_work_summary.png` – Employee work summary
 - `task5_employee_not_found.png` – Missing employee
 - `task5_work_item_not_found.png` – Missing work item
+
+# Task 6: Employee and Work Item Microservices
+
+## Overview
+
+Task 6 separates employee management and work item management into two independent FastAPI microservices. Each service uses its own MySQL database.
+
+### Services
+
+| Service           | Port | Database               |
+| ----------------- | ---: | ---------------------- |
+| Employee Service  | 8001 | `employee_service_db`  |
+| Work Item Service | 8002 | `work_item_service_db` |
+
+## Technologies Used
+
+* Python
+* FastAPI
+* Pydantic
+* SQLAlchemy
+* MySQL
+* Uvicorn
+* HTTPX
+
+## Prerequisites
+
+* Python 3.12 or a compatible Python version
+* MySQL Server
+* Git
+
+## Database Setup
+
+Create the two databases in MySQL:
+
+```sql
+CREATE DATABASE employee_service_db;
+CREATE DATABASE work_item_service_db;
+```
+
+The application creates its tables when each service starts.
+
+## Environment Configuration
+
+Create a `.env` file inside each service directory. Use your own MySQL credentials.
+
+### Employee Service
+
+```env
+DB_USER=root
+DB_PASSWORD=YOUR_MYSQL_PASSWORD
+DB_HOST=localhost
+DB_PORT=3306
+DB_NAME=employee_service_db
+```
+
+### Work Item Service
+
+```env
+DB_USER=root
+DB_PASSWORD=YOUR_MYSQL_PASSWORD
+DB_HOST=localhost
+DB_PORT=3306
+DB_NAME=work_item_service_db
+EMPLOYEE_SERVICE_URL=http://localhost:8001
+```
+
+Do not commit actual `.env` files or database passwords to GitHub.
+
+## Installation
+
+Clone the repository and switch to the Task 6 branch:
+
+```bash
+git clone https://github.com/gracyarivukkarasi/employee_fastapi_assignment.git
+cd employee_fastapi_assignment
+git checkout task-6
+```
+
+### Install Employee Service dependencies
+
+```bash
+cd employee_service
+pip install -r requirements.txt
+```
+
+### Install Work Item Service dependencies
+
+Open a second terminal from the repository root:
+
+```bash
+cd work_item_service
+pip install -r requirements.txt
+```
+
+## Running the Services
+
+Run each service in its own terminal.
+
+### Employee Service
+
+From the `employee_service` directory:
+
+```bash
+uvicorn app.main:app --reload --port 8001
+```
+
+Swagger UI: http://localhost:8001/docs
+
+### Work Item Service
+
+From the `work_item_service` directory:
+
+```bash
+uvicorn app.main:app --reload --port 8002
+```
+
+Swagger UI: http://localhost:8002/docs
+
+## API Endpoints
+
+### Employee Service
+
+| Method | Endpoint                   | Description          |
+| ------ | -------------------------- | -------------------- |
+| GET    | `/health`                  | Health check         |
+| POST   | `/employees`               | Create an employee   |
+| GET    | `/employees`               | List employees       |
+| GET    | `/employees/{employee_id}` | Retrieve an employee |
+
+### Work Item Service
+
+| Method | Endpoint                     | Description          |
+| ------ | ---------------------------- | -------------------- |
+| GET    | `/health`                    | Health check         |
+| POST   | `/work-items`                | Create a work item   |
+| GET    | `/work-items`                | List work items      |
+| GET    | `/work-items/{work_item_id}` | Retrieve a work item |
+
+## Sample Requests
+
+### Create an Employee
+
+**POST** `/employees`
+
+```json
+{
+  "name": "Arun Kumar",
+  "email": "arun.kumar@example.com",
+  "department": "IT",
+  "primary_skill": "Python",
+  "location": "Chennai",
+  "work_mode": "WFH"
+}
+```
+
+Expected status: `201 Created`
+
+### Create a Work Item
+
+**POST** `/work-items`
+
+```json
+{
+  "title": "Develop Employee API",
+  "description": "Implement the employee retrieval endpoint",
+  "employee_id": 1
+}
+```
+
+Expected status: `201 Created`
+
+The Work Item Service verifies the employee through an HTTP request to the Employee Service before saving the work item.
+
+## Validation and Error Handling
+
+* Duplicate employee email: `400 Bad Request`
+* Employee not found: `404 Not Found`
+* Work item not found: `404 Not Found`
+* Creating a work item for a nonexistent employee: `404 Not Found`
+* Employee Service unavailable or timed out during work item creation: `503 Service Unavailable`
+* Invalid request data: `422 Unprocessable Entity`
+* Creating a work item with `IN_PROGRESS` or `COMPLETED` status: `400 Bad Request`
+* New work items default to `TODO`.
+
+When employee verification fails, the Work Item Service must not save the work item.
+
+## Database Design
+
+* Employee records are stored in `employee_service_db`.
+* Work item records are stored in `work_item_service_db`.
+* Work items store `employee_id` as an integer.
+* The Work Item Service uses HTTPX to verify employees.
+* No database foreign key or SQLAlchemy relationship connects the two services.
+
+## Verification
+
+The following scenarios were tested:
+
+* Employee creation and retrieval.
+* Work item creation for an existing employee.
+* Rejection of nonexistent employee IDs.
+* Validation of work item status and title.
+* `503 Service Unavailable` when the Employee Service is stopped.
+* Retrieval of existing work items after the failed request.
