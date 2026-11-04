@@ -950,3 +950,193 @@ The following scenarios were tested:
 * Validation of work item status and title.
 * `503 Service Unavailable` when the Employee Service is stopped.
 * Retrieval of existing work items after the failed request.
+
+## Clone the Repository and Checkout Task 6
+
+Clone the repository:
+
+```bash
+git clone https://github.com/gracyarivukkarasi/employee_fastapi_assignment.git
+```
+
+Navigate to the project directory:
+
+```bash
+cd employee_fastapi_assignment
+```
+
+Check out the Task 6 branch:
+
+```bash
+git checkout task-6
+```
+A. Employee Service
+
+Base URL: http://localhost:8001
+
+1. Health Check — GET /health
+
+Sample response (200 OK):
+
+{
+  "status": "healthy",
+  "service": "Employee Service"
+}
+
+2. Create Employee — POST /employees
+
+Sample request:
+
+{
+  "name": "Arun Kumar",
+  "email": "arun.kumar@example.com",
+  "department": "IT",
+  "primary_skill": "Python",
+  "location": "Chennai",
+  "work_mode": "WFH"
+}
+
+Sample response (201 Created):
+
+{
+  "id": 1,
+  "name": "Arun Kumar",
+  "email": "arun.kumar@example.com",
+  "department": "IT",
+  "primary_skill": "Python",
+  "location": "Chennai",
+  "work_mode": "WFH",
+  "is_active": true,
+  "created_at": "2026-10-28T11:00:00"
+}
+
+Note: The ID and timestamp are examples. Actual values depend on your database.
+
+3. Get All Employees — GET /employees
+
+Sample response (200 OK):
+
+[
+  {
+    "id": 1,
+    "name": "Arun Kumar",
+    "email": "arun.kumar@example.com",
+    "department": "IT",
+    "primary_skill": "Python",
+    "location": "Chennai",
+    "work_mode": "WFH",
+    "is_active": true,
+    "created_at": "2026-10-28T11:00:00"
+  }
+]
+
+4. Get Employee by ID — GET /employees/1
+
+Sample response (200 OK):
+
+{
+  "id": 1,
+  "name": "Arun Kumar",
+  "email": "arun.kumar@example.com",
+  "department": "IT",
+  "primary_skill": "Python",
+  "location": "Chennai",
+  "work_mode": "WFH",
+  "is_active": true,
+  "created_at": "2026-10-28T11:00:00"
+}
+B. Work Item Service
+
+Base URL: http://localhost:8002
+
+1. Health Check — GET /health
+
+Sample response (200 OK):
+
+{
+  "status": "healthy",
+  "service": "Work Item Service"
+}
+
+2. Create Work Item — POST /work-items
+
+Sample request:
+
+{
+  "title": "Develop Employee API",
+  "description": "Implement the employee retrieval endpoint",
+  "employee_id": 1
+}
+
+Sample response (201 Created):
+
+{
+  "id": 1,
+  "title": "Develop Employee API",
+  "description": "Implement the employee retrieval endpoint",
+  "employee_id": 1,
+  "status": "TODO",
+  "created_at": "2026-10-28T11:19:19"
+}
+
+3. Get All Work Items — GET /work-items
+
+Sample response (200 OK):
+
+[
+  {
+    "id": 1,
+    "title": "Develop Employee API",
+    "description": "Implement the employee retrieval endpoint",
+    "employee_id": 1,
+    "status": "TODO",
+    "created_at": "2026-10-28T11:19:19"
+  }
+]
+
+4. Get Work Item by ID — GET /work-items/1
+
+Sample response (200 OK):
+
+{
+  "id": 1,
+  "title": "Develop Employee API",
+  "description": "Implement the employee retrieval endpoint",
+  "employee_id": 1,
+  "status": "TODO",
+  "created_at": "2026-10-28T11:19:19"
+}
+
+Note: These responses are examples. Use the actual response values from your running application when they differ.
+
+C. Error Responses
+
+Employee not found — GET /employees/9999
+
+Status: 404 Not Found
+
+{
+  "detail": "Employee not found"
+}
+
+Work item created for a nonexistent employee — POST /work-items
+
+Status: 404 Not Found
+
+{
+  "detail": "Employee not found"
+}
+
+Employee Service unavailable during work item creation
+
+Status: 503 Service Unavailable
+
+{
+  "detail": "Employee Service is unavailable or timed out"
+}
+
+Invalid request data
+
+Status: 422 Unprocessable Entity
+
+FastAPI returns validation details when required fields are missing or invalid.
