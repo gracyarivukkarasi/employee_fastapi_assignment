@@ -1,8 +1,21 @@
-from datetime import datetime
+from datetime import date, datetime
 from enum import Enum
 
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
+class WorkItemStatus(str, Enum):
+    TODO = "TODO"
+    IN_PROGRESS = "IN_PROGRESS"
+    COMPLETED = "COMPLETED"
+
+
+class WorkItemPriority(str, Enum):
+    LOW = "LOW"
+    MEDIUM = "MEDIUM"
+    HIGH = "HIGH"
+
+class WorkItemStatusUpdate(BaseModel):
+    status: WorkItemStatus
 
 class WorkMode(str, Enum):
     WFH = "WFH"
@@ -62,3 +75,81 @@ class EmployeeListResponse(BaseModel):
     limit: int
     offset: int
     items: list[EmployeeResponse]
+
+class WorkItemCreate(BaseModel):
+    title: str = Field(..., min_length=1, max_length=200)
+    description: str | None = Field(default=None, max_length=500)
+    employee_id: int = Field(..., gt=0)
+    status: WorkItemStatus = WorkItemStatus.TODO
+    priority: WorkItemPriority = WorkItemPriority.MEDIUM
+    due_date: date | None = None
+
+    @field_validator("title")
+    @classmethod
+    def validate_title(cls, value):
+        if not value.strip():
+            raise ValueError("Title cannot be empty or whitespace only")
+        return value.strip()
+
+
+class WorkItemUpdate(BaseModel):
+    title: str = Field(..., min_length=1, max_length=200)
+    description: str | None = Field(default=None, max_length=500)
+    employee_id: int = Field(..., gt=0)
+    status: WorkItemStatus | None = Field(default=None)
+    priority: WorkItemPriority
+    due_date: date | None = None
+
+    @field_validator("title")
+    @classmethod
+    def validate_title(cls, value):
+        if not value.strip():
+            raise ValueError("Title cannot be empty or whitespace only")
+        return value.strip()
+
+    @field_validator("status", mode="before")
+    @classmethod
+    def reject_null_status(cls, value):
+        if value is None:
+            raise ValueError("Status cannot be null")
+        return value
+
+
+class AssignedEmployeeResponse(BaseModel):
+    id: int
+    name: str
+    email: EmailStr
+
+    model_config = {
+        "from_attributes": True
+    }
+
+
+class WorkItemResponse(BaseModel):
+    id: int
+    title: str
+    description: str | None = None
+    employee_id: int
+    status: WorkItemStatus
+    priority: WorkItemPriority
+    due_date: date | None = None
+    created_at: datetime
+    assigned_employee: AssignedEmployeeResponse
+
+    model_config = {
+        "from_attributes": True
+    }
+
+
+class WorkItemListResponse(BaseModel):
+    total: int
+    limit: int
+    offset: int
+    items: list[WorkItemResponse]
+
+class EmployeeWorkSummaryResponse(BaseModel):
+    employee_id: int
+    total_work_items: int
+    todo: int
+    in_progress: int
+    completed: int
